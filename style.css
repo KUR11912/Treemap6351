@@ -19,6 +19,7 @@ html,
 body {
   min-width: 320px;
   margin: 0;
+  overflow-x: hidden;
   background: var(--page);
   color: var(--text);
   font-family:
@@ -38,7 +39,8 @@ select {
 button:focus-visible,
 select:focus-visible,
 a:focus-visible,
-.cell:focus-visible {
+.cell:focus-visible,
+.continent-group:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
@@ -55,6 +57,13 @@ a:focus-visible,
   justify-content: space-between;
   gap: 24px;
   margin-bottom: 16px;
+}
+
+.hero-copy,
+.year-control,
+.chart-card,
+.chart-heading-row > div {
+  min-width: 0;
 }
 
 .eyebrow {
@@ -83,6 +92,7 @@ h1 {
   margin-bottom: 0;
   color: var(--muted);
   font-size: clamp(0.92rem, 2vw, 1.03rem);
+  overflow-wrap: anywhere;
 }
 
 .year-control {
@@ -163,6 +173,79 @@ h1 {
   background: var(--surface);
 }
 
+.chart-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  gap: 14px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: #0d1522;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.breadcrumb-button,
+.back-button {
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+}
+
+.breadcrumb-button {
+  padding: 5px 7px;
+  font-weight: 700;
+}
+
+.breadcrumb-button:not(:disabled):hover,
+.back-button:hover {
+  border-color: var(--border);
+  background: var(--surface-soft);
+}
+
+.breadcrumb-button:disabled {
+  color: var(--text);
+  opacity: 1;
+}
+
+.breadcrumb-separator {
+  color: #65738a;
+  font-size: 1rem;
+}
+
+.breadcrumb-current {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.back-button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.back-button[hidden] {
+  display: none;
+}
+
 .chart-heading-row {
   display: flex;
   align-items: center;
@@ -183,6 +266,7 @@ h1 {
   margin-bottom: 0;
   color: var(--muted);
   font-size: 0.76rem;
+  overflow-wrap: anywhere;
 }
 
 .data-note {
@@ -207,9 +291,16 @@ h1 {
   outline: none;
 }
 
+.country-cell.is-overview,
+.continent-group {
+  cursor: pointer;
+}
+
 .cell rect {
   stroke: #0b111b;
-  stroke-width: 2px;
+  stroke-width: 1.5px;
+  fill-opacity: 1;
+  opacity: 1;
   transition: filter 150ms ease, stroke 150ms ease;
 }
 
@@ -217,8 +308,50 @@ h1 {
 .cell:focus-visible rect,
 .cell.is-active rect {
   stroke: #f3f7ff;
-  stroke-width: 3px;
+  stroke-width: 2.5px;
   filter: brightness(1.13);
+}
+
+.continent-group {
+  outline: none;
+}
+
+.continent-boundary {
+  stroke-width: 2.5px;
+  transition: filter 150ms ease, stroke 150ms ease;
+}
+
+.continent-header {
+  stroke: rgb(255 255 255 / 12%);
+  stroke-width: 1px;
+}
+
+.continent-group:hover .continent-boundary,
+.continent-group:focus-visible .continent-boundary,
+.continent-group.is-active .continent-boundary {
+  stroke: #f3f7ff;
+  stroke-width: 3.5px;
+  filter: brightness(1.12);
+}
+
+.continent-group text {
+  fill: #fff;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: rgb(0 0 0 / 35%);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+}
+
+.continent-header-name {
+  font-size: clamp(11px, 1vw, 14px);
+  font-weight: 800;
+}
+
+.continent-header-meta {
+  fill: rgb(255 255 255 / 82%);
+  font-size: clamp(8px, 0.78vw, 10px);
+  font-weight: 650;
 }
 
 .cell text {
@@ -239,6 +372,21 @@ h1 {
   fill: rgb(255 255 255 / 82%);
   font-size: 11px;
   font-weight: 550;
+}
+
+.cell-code {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.cell.is-light-tile text {
+  fill: #101a25;
+  stroke: rgb(255 255 255 / 35%);
+}
+
+.cell.is-light-tile .cell-value {
+  fill: rgb(16 26 37 / 82%);
 }
 
 .message-state {
@@ -298,7 +446,8 @@ h1 {
     animation: none;
   }
 
-  .cell rect {
+  .cell rect,
+  .continent-boundary {
     transition: none;
   }
 }
@@ -340,39 +489,11 @@ h1 {
   font-variant-numeric: tabular-nums;
 }
 
-.legend-section {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 13px 3px 0;
-}
-
-.legend-section h2 {
-  flex: 0 0 auto;
+.interaction-hint {
   margin: 0;
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 17px;
-}
-
-.legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
+  padding: 11px 3px 0;
   color: var(--muted);
   font-size: 0.74rem;
-}
-
-.legend-swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
 }
 
 @media (max-width: 760px) {
@@ -431,18 +552,31 @@ h1 {
     gap: 5px;
   }
 
+  .chart-navigation {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .back-button {
+    width: 100%;
+  }
+
   .data-note {
     text-align: left;
   }
 
   .chart-wrap {
-    height: 62vh;
-    min-height: 430px;
+    height: 760px;
+    min-height: 760px;
   }
 
-  .legend-section {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 9px;
+  .continent-header-name {
+    font-size: 10px;
   }
+
+  .continent-header-meta {
+    font-size: 8px;
+  }
+
 }

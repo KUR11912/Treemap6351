@@ -18,7 +18,7 @@
         <div class="hero-copy">
           <p class="eyebrow">World Bank Open Data</p>
           <h1>World GDP Treemap</h1>
-          <p class="subtitle">矩形面积代表各国 GDP 规模，颜色代表所属地区</p>
+          <p class="subtitle">在一个矩形树图中查看“世界—大洲—国家”的 GDP 层级</p>
         </div>
 
         <div class="year-control">
@@ -35,7 +35,7 @@
           <strong id="current-year" class="stat-value">—</strong>
         </div>
         <div class="stat">
-          <span class="stat-label">国家数量</span>
+          <span id="entity-count-label" class="stat-label">大洲数量</span>
           <strong id="country-count" class="stat-value">—</strong>
         </div>
         <div class="stat stat-wide">
@@ -53,10 +53,25 @@
       </section>
 
       <section class="chart-card" aria-labelledby="chart-heading">
+        <div class="chart-navigation">
+          <nav class="breadcrumb" aria-label="Treemap 层级导航">
+            <button id="world-crumb" class="breadcrumb-button" type="button" aria-current="page">
+              World
+            </button>
+            <span id="breadcrumb-separator" class="breadcrumb-separator" aria-hidden="true" hidden>›</span>
+            <span id="breadcrumb-current" class="breadcrumb-current" hidden></span>
+          </nav>
+          <button id="back-button" class="back-button" type="button" hidden>
+            ← Back to Continents
+          </button>
+        </div>
+
         <div class="chart-heading-row">
           <div>
-            <h2 id="chart-heading">各国 GDP 规模</h2>
-            <p id="chart-caption">将鼠标移到矩形上可查看详细数据</p>
+            <h2 id="chart-heading">World GDP by Continent and Country</h2>
+            <p id="chart-caption">
+              Rectangle size represents GDP. Within each continent, darker colors indicate higher GDP.
+            </p>
           </div>
           <p id="data-note" class="data-note" aria-live="polite"></p>
         </div>
@@ -79,17 +94,17 @@
           </div>
 
           <div id="empty-state" class="message-state" aria-live="polite" hidden>
-            <p>这个年份没有有效的 GDP 数据，请选择其他年份。</p>
+            <p id="empty-message">这个年份没有有效的 GDP 数据，请选择其他年份。</p>
           </div>
 
           <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
         </div>
       </section>
 
-      <section class="legend-section" aria-labelledby="legend-title">
-        <h2 id="legend-title">地区颜色</h2>
-        <div id="legend" class="legend"></div>
-      </section>
+      <p class="interaction-hint">
+        点击大洲标题或任意国家可下钻；小矩形可悬停查看完整信息。Rectangle size represents GDP.
+        Within each continent, darker colors indicate higher GDP.
+      </p>
     </main>
   </body>
 </html>
