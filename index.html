@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="使用世界银行真实数据展示世界各国 GDP 规模的交互式 Treemap。"
+    />
+    <title>World GDP Treemap</title>
+    <link rel="stylesheet" href="style.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script defer src="script.js"></script>
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">World Bank Open Data</p>
+          <h1>World GDP Treemap</h1>
+          <p class="subtitle">矩形面积代表各国 GDP 规模，颜色代表所属地区</p>
+        </div>
+
+        <div class="year-control">
+          <label for="year-select">选择年份</label>
+          <select id="year-select" disabled aria-label="选择 GDP 数据年份">
+            <option>加载中…</option>
+          </select>
+        </div>
+      </header>
+
+      <section class="overview" aria-label="当前数据概览">
+        <div class="stat">
+          <span class="stat-label">当前年份</span>
+          <strong id="current-year" class="stat-value">—</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">国家数量</span>
+          <strong id="country-count" class="stat-value">—</strong>
+        </div>
+        <div class="stat stat-wide">
+          <span class="stat-label">GDP 合计</span>
+          <strong id="total-gdp" class="stat-value">—</strong>
+        </div>
+        <a
+          class="source-link"
+          href="https://data.worldbank.org/indicator/NY.GDP.MKTP.CD"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          数据来源：世界银行 ↗
+        </a>
+      </section>
+
+      <section class="chart-card" aria-labelledby="chart-heading">
+        <div class="chart-heading-row">
+          <div>
+            <h2 id="chart-heading">各国 GDP 规模</h2>
+            <p id="chart-caption">将鼠标移到矩形上可查看详细数据</p>
+          </div>
+          <p id="data-note" class="data-note" aria-live="polite"></p>
+        </div>
+
+        <div id="chart-wrap" class="chart-wrap">
+          <svg
+            id="treemap"
+            role="img"
+            aria-labelledby="chart-heading chart-caption"
+          ></svg>
+
+          <div id="loading-state" class="message-state" aria-live="polite">
+            <div class="spinner" aria-hidden="true"></div>
+            <p>正在加载世界银行数据……</p>
+          </div>
+
+          <div id="error-state" class="message-state" role="alert" hidden>
+            <p id="error-message">数据加载失败，请稍后重试。</p>
+            <button id="retry-button" type="button">重新加载</button>
+          </div>
+
+          <div id="empty-state" class="message-state" aria-live="polite" hidden>
+            <p>这个年份没有有效的 GDP 数据，请选择其他年份。</p>
+          </div>
+
+          <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+        </div>
+      </section>
+
+      <section class="legend-section" aria-labelledby="legend-title">
+        <h2 id="legend-title">地区颜色</h2>
+        <div id="legend" class="legend"></div>
+      </section>
+    </main>
+  </body>
+</html>
