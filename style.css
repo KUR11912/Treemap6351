@@ -281,7 +281,7 @@ h1 {
   background: #0b111b;
 }
 
-#circle-pack {
+#circular-treemap {
   display: block;
   width: 100%;
   height: 100%;
@@ -297,19 +297,21 @@ h1 {
   cursor: pointer;
 }
 
-.cell circle {
+.cell .country-shape {
   stroke: #0b111b;
-  stroke-width: 1.5px;
+  stroke-width: 1.4px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
   fill-opacity: 1;
   opacity: 1;
   transition: filter 150ms ease, stroke 150ms ease;
 }
 
-.cell:hover circle,
-.cell:focus-visible circle,
-.cell.is-active circle {
+.cell:hover .country-shape,
+.cell:focus-visible .country-shape,
+.cell.is-active .country-shape {
   stroke: #f3f7ff;
-  stroke-width: 2.5px;
+  stroke-width: 2.4px;
   filter: brightness(1.13);
 }
 
@@ -323,7 +325,10 @@ h1 {
 }
 
 .continent-boundary {
-  stroke-width: 2.5px;
+  pointer-events: stroke;
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
   transition: filter 150ms ease, stroke 150ms ease;
 }
 
@@ -456,7 +461,7 @@ h1 {
     animation: none;
   }
 
-  .cell circle,
+  .cell .country-shape,
   .continent-boundary {
     transition: none;
   }

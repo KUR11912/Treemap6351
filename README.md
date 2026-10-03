@@ -1,12 +1,12 @@
-# World GDP Circle Packing — Challenge 2
+# World GDP Circular Voronoi Treemap — Challenge 2
 
-这是 Challenge 2 的圆形版本。网站继续使用世界银行真实 GDP 数据，但把矩形 Treemap 改成了层级圆形打包图。打开后可以同时看到六大洲圆和大洲内部的国家圆，点击大洲圆或任意国家圆可以放大查看该洲。它不需要安装复杂工具，也不需要 API Key。
+这是 Challenge 2 的圆形版本。网站继续使用世界银行真实 GDP 数据，但把矩形 Treemap 改成了圆形 Voronoi Treemap：最外层是一个大圆，大圆内部由不规则多边形分成大洲和国家。点击大洲区域或任意国家区域可以放大查看该洲。它不需要 API Key。
 
 ## 每个文件是做什么的
 
 - `index.html`：网页的文字、按钮和整体结构。
 - `style.css`：网页的颜色、大小、间距和手机适配。
-- `script.js`：读取世界银行数据、按 ISO3 代码划分大洲，并使用 `d3.pack()` 绘制“世界—大洲—国家”的可下钻圆形打包图。
+- `script.js`：读取世界银行数据、按 ISO3 代码划分大洲，并使用 Circular Voronoi Treemap 绘制“世界—大洲—国家”的可下钻圆形分区图。
 - `README.md`：也就是你正在看的使用说明。
 
 ## 如何在 VS Code 中安装 Live Server
@@ -42,7 +42,7 @@
 打开 `index.html`，找到：
 
 ```html
-<h1>World GDP Circle Packing</h1>
+<h1>World GDP Circular Treemap</h1>
 ```
 
 把中间的文字换成你想要的标题。
@@ -68,15 +68,15 @@ const PREFERRED_DEFAULT_YEAR = null;
 - 保持 `null`：自动选择“至少有 100 个国家有数据”的最新年份。
 - 改成 `2022`：优先显示 2022 年（只要 API 中存在这一年的有效数据）。
 
-## 怎样阅读 Circle Packing
+## 怎样阅读 Circular Voronoi Treemap
 
-Circle Packing 会把层级数据排成许多互不重叠、彼此包含的圆：
+Circular Voronoi Treemap 会把一个大圆切分成许多不规则多边形：
 
-- 最外层圆代表当前显示范围；总览中的大圆代表大洲，内部小圆代表该洲的国家或经济体。
-- 国家圆的面积由真实 GDP 决定；圆越大，GDP 越高。
+- 最外层圆代表当前显示范围；总览中先按大洲分区，每个大洲内部再按国家分区。
+- 国家多边形的面积由真实 GDP 决定；面积越大，GDP 越高。
 - 同一个大洲内，GDP 越高颜色越深，GDP 越低颜色越浅。不同大洲使用不同基础色相。
-- 点击大洲圆或任意国家圆会进入该洲详情；国家会在同一个图表区域中放大。
-- 把鼠标移到圆上，可以看到完整 GDP、简写 GDP 和占比。
+- 点击大洲区域或任意国家多边形会进入该洲详情；国家会在同一个圆形图表区域中放大。
+- 把鼠标移到多边形上，可以看到完整 GDP、简写 GDP 和占比。
 - 点击 `World` 面包屑或 `← Back to Continents` 按钮，可以返回包含所有国家的六大洲总览。
 - 切换年份后会保留当前层级，并重新计算面积。
 

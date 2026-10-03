@@ -5,11 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="使用世界银行真实数据展示世界各国 GDP 规模的交互式 Circle Packing。"
+      content="使用世界银行真实数据展示世界各国 GDP 规模的交互式圆形 Voronoi Treemap。"
     />
-    <title>World GDP Circle Packing</title>
+    <title>World GDP Circular Treemap</title>
     <link rel="stylesheet" href="style.css" />
     <script defer src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/d3-weighted-voronoi@1.1.3/build/d3-weighted-voronoi.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/d3-voronoi-map@2.1.1/build/d3-voronoi-map.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/d3-voronoi-treemap@1.1.2/build/d3-voronoi-treemap.min.js"></script>
     <script defer src="script.js"></script>
   </head>
   <body>
@@ -17,8 +20,8 @@
       <header class="hero">
         <div class="hero-copy">
           <p class="eyebrow">World Bank Open Data</p>
-          <h1>World GDP Circle Packing</h1>
-          <p class="subtitle">在一个圆形打包图中查看“世界—大洲—国家”的 GDP 层级</p>
+          <h1>World GDP Circular Treemap</h1>
+          <p class="subtitle">在一个圆形 Voronoi Treemap 中查看“世界—大洲—国家”的 GDP 层级</p>
         </div>
 
         <div class="year-control">
@@ -54,7 +57,7 @@
 
       <section class="chart-card" aria-labelledby="chart-heading">
         <div class="chart-navigation">
-          <nav class="breadcrumb" aria-label="Circle Packing 层级导航">
+          <nav class="breadcrumb" aria-label="Circular Treemap 层级导航">
             <button id="world-crumb" class="breadcrumb-button" type="button" aria-current="page">
               World
             </button>
@@ -68,9 +71,9 @@
 
         <div class="chart-heading-row">
           <div>
-            <h2 id="chart-heading">World GDP Circle Packing</h2>
+            <h2 id="chart-heading">World GDP Circular Treemap</h2>
             <p id="chart-caption">
-              Circle area represents GDP. Within each continent, darker colors indicate higher GDP.
+              Polygon area represents GDP. The outer boundary is circular.
             </p>
           </div>
           <p id="data-note" class="data-note" aria-live="polite"></p>
@@ -78,7 +81,7 @@
 
         <div id="chart-wrap" class="chart-wrap">
           <svg
-            id="circle-pack"
+            id="circular-treemap"
             role="img"
             aria-labelledby="chart-heading chart-caption"
           ></svg>
@@ -102,7 +105,7 @@
       </section>
 
       <p class="interaction-hint">
-        点击大洲圆或任意国家圆可下钻；小圆可悬停查看完整信息。Circle area represents GDP.
+        点击大洲区域或任意国家多边形可下钻；小区域可悬停查看完整信息。Polygon area represents GDP.
         Within each continent, darker colors indicate higher GDP.
       </p>
     </main>

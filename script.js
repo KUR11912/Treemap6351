@@ -17,7 +17,7 @@ const CONTINENTS = [
 
 // 每个大洲继续使用固定基础色相。浅色端也保持较高饱和度，避免中间色发灰、发脏；
 // 同时保留很大的明度跨度，让同一洲内的国家仍然容易区分。
-// accent 保留原有大洲标题颜色；light / dark 只控制国家圆。
+// accent 保留原有大洲标题颜色；light / dark 只控制国家多边形。
 const CONTINENT_COLOR_RANGES = {
   Asia: {
     light: "hsl(12, 82%, 91%)",
@@ -126,7 +126,7 @@ const elements = {
   breadcrumbCurrent: document.querySelector("#breadcrumb-current"),
   backButton: document.querySelector("#back-button"),
   chartWrap: document.querySelector("#chart-wrap"),
-  svg: document.querySelector("#circle-pack"),
+  svg: document.querySelector("#circular-treemap"),
   loading: document.querySelector("#loading-state"),
   error: document.querySelector("#error-state"),
   errorMessage: document.querySelector("#error-message"),
@@ -293,8 +293,8 @@ async function fetchJson(url) {
 async function loadData() {
   showLoading();
 
-  if (typeof d3 === "undefined") {
-    showError("D3.js 没有成功加载。请检查网络连接后重新加载。");
+  if (typeof d3 === "undefined" || typeof d3.voronoiTreemap !== "function") {
+    showError("D3.js 或 Voronoi Treemap 插件没有成功加载。请检查网络连接后重新加载。");
     return;
   }
 
@@ -466,30 +466,30 @@ function updateVisualization(year, animate = true) {
   hideTooltip();
 
   if (state.currentLevel === "countries") {
-    renderCountryCirclePack(countries, animate);
+    renderCountryCircularTreemap(countries, animate);
   } else {
-    renderContinentCirclePack(countries, animate);
+    renderContinentCircularTreemap(countries, animate);
   }
 }
 
 // ------------------------------
-// 7. 第一级：世界、大洲和国家的 Circle Packing
+// 7. 第一级：世界、大洲和国家的圆形 Voronoi Treemap
 // ------------------------------
-function renderContinentCirclePack(countries, animate = true) {
+function renderContinentCircularTreemap(countries, animate = true) {
   const continentTotals = calculateContinentTotals(countries);
 
-  elements.chartHeading.textContent = "World GDP Circle Packing";
+  elements.chartHeading.textContent = "World GDP Circular Treemap";
   elements.chartCaption.textContent =
-    "Circle area represents GDP. Within each continent, darker colors indicate higher GDP.";
+    "Polygon area represents GDP. The outer boundary is circular.";
   elements.svg.setAttribute(
     "aria-label",
-    `${state.selectedYear} 年世界六大洲及其国家 GDP 层级圆形打包图`,
+    `${state.selectedYear} 年世界六大洲及其国家 GDP 圆形 Voronoi Treemap`,
   );
 
   if (continentTotals.length === 0) {
     showEmpty(`世界六大洲在 ${state.selectedYear} 年没有有效 GDP 数据，请选择其他年份。`);
     updateSummary({ count: 0, total: 0, level: "continents", countryCount: 0 });
-    clearCirclePack();
+    clearCircularTreemap();
     return;
   }
 
@@ -501,13 +501,13 @@ function renderContinentCirclePack(countries, animate = true) {
     level: "continents",
     countryCount: countries.length,
   });
-  drawCirclePack(countries, { level: "continents", total, animate });
+  drawCircularTreemap(countries, { level: "continents", total, animate });
 }
 
 // ------------------------------
-// 8. 第二级：单个大洲的国家 Circle Packing
+// 8. 第二级：单个大洲的国家圆形 Voronoi Treemap
 // ------------------------------
-function renderCountryCirclePack(countries, animate = true) {
+function renderCountryCircularTreemap(countries, animate = true) {
   const continentCountries = countries
     .filter((country) => country.continent === state.selectedContinent)
     .map((country) => ({
@@ -518,10 +518,10 @@ function renderCountryCirclePack(countries, animate = true) {
 
   elements.chartHeading.textContent = `${state.selectedContinent} — GDP by Country`;
   elements.chartCaption.textContent =
-    "Circle area represents GDP. Within this continent, darker colors indicate higher GDP.";
+    "Polygon area represents GDP. Within this continent, darker colors indicate higher GDP.";
   elements.svg.setAttribute(
     "aria-label",
-    `${state.selectedYear} 年 ${state.selectedContinent} 各国 GDP 圆形打包图`,
+    `${state.selectedYear} 年 ${state.selectedContinent} 各国 GDP 圆形 Voronoi Treemap`,
   );
 
   if (continentCountries.length === 0) {
@@ -529,29 +529,30 @@ function renderCountryCirclePack(countries, animate = true) {
       `${state.selectedContinent} 在 ${state.selectedYear} 年没有有效 GDP 数据，请选择其他年份。`,
     );
     updateSummary({ count: 0, total: 0, level: "countries" });
-    clearCirclePack();
+    clearCircularTreemap();
     return;
   }
 
   elements.empty.hidden = true;
   const total = d3.sum(continentCountries, (country) => country.value);
   updateSummary({ count: continentCountries.length, total, level: "countries" });
-  drawCirclePack(continentCountries, { level: "countries", total, animate });
+  drawCircularTreemap(continentCountries, { level: "countries", total, animate });
 }
 
 // ------------------------------
-// 9. 共用绘图：用 d3.pack 把层级数据排成互不重叠的圆
+// 9. 共用绘图：用 Voronoi 算法在一个圆内划分层级多边形
 // ------------------------------
-function drawCirclePack(items, { level, total, animate }) {
+function drawCircularTreemap(items, { level, total, animate }) {
   state.currentTotal = total;
 
   const width = Math.max(1, elements.chartWrap.clientWidth);
   const height = Math.max(1, elements.chartWrap.clientHeight);
   const isOverview = level === "continents";
-  const outerMargin = width < 520 ? 8 : 12;
-  const diameter = Math.max(1, Math.min(width, height) - outerMargin * 2);
-  const offsetX = (width - diameter) / 2;
-  const offsetY = (height - diameter) / 2;
+  const outerMargin = width < 520 ? 10 : 16;
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const radius = Math.max(1, Math.min(width, height) / 2 - outerMargin);
+  const circlePolygon = createCirclePolygon(centerX, centerY, radius, 72);
   const colorScales = createContinentColorScales(items);
 
   // 总览是 World → Continent → Country；详情是 Continent → Country。
@@ -585,11 +586,14 @@ function drawCirclePack(items, { level, total, animate }) {
     .sum((item) => (item.kind === "country" ? item.value : 0))
     .sort((a, b) => b.value - a.value);
 
-  // d3.pack 会让圆面积按 value 分配，因此国家圆面积仍然代表真实 GDP。
+  // Voronoi Treemap 会把一个圆形多边形切成不规则区域。
+  // 每个区域的目标面积来自 value，因此国家面积仍然代表真实 GDP。
   d3
-    .pack()
-    .size([diameter, diameter])
-    .padding(isOverview ? 4 : 3)(root);
+    .voronoiTreemap()
+    .clip(circlePolygon)
+    .prng(d3.randomLcg(0.42))
+    .convergenceRatio(0.01)
+    .maxIterationCount(55)(root);
 
   const leaves = root.leaves();
   const continentNodes = isOverview ? root.children || [] : [];
@@ -619,9 +623,17 @@ function drawCirclePack(items, { level, total, animate }) {
     continentLabelLayer = svg.append("g").attr("class", "continent-label-layer");
   }
 
+  // 国家在底层，大洲边界和大洲文字放到上层，层级会更清楚。
+  countryLayer.raise();
+  continentLayer.raise();
+  continentLabelLayer.raise();
+
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const duration = animate && !reducedMotion ? TRANSITION_DURATION : 0;
-  const transition = svg.transition("circle-pack-update").duration(duration).ease(d3.easeCubicInOut);
+  const transition = svg
+    .transition("circular-voronoi-update")
+    .duration(duration)
+    .ease(d3.easeCubicInOut);
 
   // 最外层圆代表当前显示范围：总览时是 World，详情时是所选大洲。
   const rootCircle = rootLayer.selectAll("circle.pack-root-boundary").data([root]);
@@ -629,14 +641,14 @@ function drawCirclePack(items, { level, total, animate }) {
     .enter()
     .append("circle")
     .attr("class", "pack-root-boundary")
-    .attr("cx", width / 2)
-    .attr("cy", height / 2)
+    .attr("cx", centerX)
+    .attr("cy", centerY)
     .attr("r", 0)
     .merge(rootCircle)
     .transition(transition)
-    .attr("cx", offsetX + root.x)
-    .attr("cy", offsetY + root.y)
-    .attr("r", Math.max(0, root.r))
+    .attr("cx", centerX)
+    .attr("cy", centerY)
+    .attr("r", radius)
     .attr("fill", "#0b111b")
     .attr(
       "stroke",
@@ -645,7 +657,7 @@ function drawCirclePack(items, { level, total, animate }) {
         : CONTINENT_COLOR_RANGES[state.selectedContinent]?.accent || "#314258",
     );
 
-  // 大洲圆位于国家圆下方，形成清楚的父子层级。
+  // 大洲路径只绘制外框；国家多边形会填满大洲内部。
   const continentGroups = continentLayer
     .selectAll("g.continent-group")
     .data(continentNodes, (d) => d.data.key);
@@ -653,9 +665,8 @@ function drawCirclePack(items, { level, total, animate }) {
     .enter()
     .append("g")
     .attr("class", "continent-group")
-    .attr("transform", `translate(${width / 2},${height / 2})`)
     .style("opacity", animate ? 0 : 1);
-  continentEnter.append("circle").attr("class", "continent-boundary");
+  continentEnter.append("path").attr("class", "continent-boundary");
 
   const allContinentGroups = continentEnter
     .merge(continentGroups)
@@ -693,45 +704,40 @@ function drawCirclePack(items, { level, total, animate }) {
     });
 
   allContinentGroups
-    .transition(transition)
-    .style("opacity", 1)
-    .attr("transform", (d) => `translate(${offsetX + d.x},${offsetY + d.y})`);
-  allContinentGroups
     .select(".continent-boundary")
-    .transition(transition)
-    .attr("r", (d) => Math.max(0, d.r))
-    .attr("fill", "#101826")
+    .attr("d", (d) => polygonPath(d.polygon))
+    .attr("fill", "none")
     .attr("stroke", (d) => CONTINENT_COLOR_RANGES[d.data.continent].accent);
+  allContinentGroups
+    .transition(transition)
+    .style("opacity", 1);
   continentGroups.exit().transition(transition).style("opacity", 0).remove();
 
   const clips = defs.selectAll("clipPath.tile-clip").data(leaves, (d) => d.data.key);
   const clipsEnter = clips.enter().append("clipPath").attr("class", "tile-clip");
-  clipsEnter.append("circle");
+  clipsEnter.append("path");
   clips
     .merge(clipsEnter)
     .attr("id", (d) => makeClipId(d.data.key))
-    .select("circle")
-    .attr("cx", 0)
-    .attr("cy", 0)
-    .attr("r", (d) => Math.max(0, d.r - 3));
+    .select("path")
+    .attr("d", (d) => polygonPath(d.polygon));
   clips.exit().remove();
 
   const cells = countryLayer.selectAll("g.cell").data(leaves, (d) => d.data.key);
   const cellsEnter = cells
     .enter()
     .append("g")
-    .attr("transform", `translate(${width / 2},${height / 2})`)
     .style("opacity", animate ? 0 : 1);
-  cellsEnter.append("circle").attr("r", 0);
+  cellsEnter.append("path").attr("class", "country-shape");
 
   const labelsEnter = cellsEnter
     .append("text")
     .attr("text-anchor", "middle")
     .attr("dominant-baseline", "middle");
-  labelsEnter.append("tspan").attr("class", "label-line-1").attr("x", 0);
-  labelsEnter.append("tspan").attr("class", "label-line-2").attr("x", 0);
-  labelsEnter.append("tspan").attr("class", "label-line-3").attr("x", 0);
-  labelsEnter.append("tspan").attr("class", "label-line-4").attr("x", 0);
+  labelsEnter.append("tspan").attr("class", "label-line-1");
+  labelsEnter.append("tspan").attr("class", "label-line-2");
+  labelsEnter.append("tspan").attr("class", "label-line-3");
+  labelsEnter.append("tspan").attr("class", "label-line-4");
 
   const allCells = cellsEnter
     .merge(cells)
@@ -784,25 +790,21 @@ function drawCirclePack(items, { level, total, animate }) {
     });
 
   allCells
-    .transition(transition)
-    .style("opacity", 1)
-    .attr("transform", (d) => `translate(${offsetX + d.x},${offsetY + d.y})`);
-  allCells
-    .select("circle")
-    .transition(transition)
-    .attr("r", (d) => Math.max(0, d.r))
+    .select(".country-shape")
+    .attr("d", (d) => polygonPath(d.polygon))
     .attr("fill", (d) => getCountryColor(d.data, colorScales))
     .attr("fill-opacity", 1)
     .attr("opacity", 1)
     .attr("stroke", (d) => getCountryBorder(d.data, colorScales));
+  allCells.transition(transition).style("opacity", 1);
 
   allCells.each(function (d) {
-    updateCircleLabel(d3.select(this), d);
+    updatePolygonLabel(d3.select(this), d);
   });
 
   cells.exit().transition(transition).style("opacity", 0).remove();
 
-  // 大洲文字单独放在最上层，避免被国家圆遮挡。
+  // 大洲文字单独放在最上层，避免被国家多边形遮挡。
   const continentLabels = continentLabelLayer
     .selectAll("g.continent-label")
     .data(continentNodes, (d) => d.data.key);
@@ -810,14 +812,13 @@ function drawCirclePack(items, { level, total, animate }) {
     .enter()
     .append("g")
     .attr("class", "continent-label")
-    .attr("transform", `translate(${width / 2},${height / 2})`)
     .style("opacity", animate ? 0 : 1);
   const labelTextEnter = continentLabelsEnter
     .append("text")
     .attr("text-anchor", "middle")
     .attr("dominant-baseline", "hanging");
-  labelTextEnter.append("tspan").attr("class", "continent-header-name").attr("x", 0);
-  labelTextEnter.append("tspan").attr("class", "continent-header-meta").attr("x", 0);
+  labelTextEnter.append("tspan").attr("class", "continent-header-name");
+  labelTextEnter.append("tspan").attr("class", "continent-header-meta");
 
   const allContinentLabels = continentLabelsEnter
     .merge(continentLabels)
@@ -856,22 +857,48 @@ function drawCirclePack(items, { level, total, animate }) {
 
   allContinentLabels
     .select(".continent-header-name")
+    .attr("x", (d) => getPolygonCenter(d.polygon)[0])
     .attr("dy", 0)
     .text((d) => d.data.name);
   allContinentLabels
     .select(".continent-header-meta")
+    .attr("x", (d) => getPolygonCenter(d.polygon)[0])
     .attr("dy", "1.25em")
     .text((d) => `${formatCompactCurrency(d.value)} · ${d.leaves().length} countries`)
-    .style("display", (d) => (d.r >= 56 ? null : "none"));
+    .style("display", (d) => (getPolygonArea(d.polygon) >= 8500 ? null : "none"));
   allContinentLabels
     .select("text")
-    .attr("y", (d) => -d.r + Math.min(18, Math.max(10, d.r * 0.15)))
-    .style("display", (d) => (d.r >= 30 ? null : "none"));
+    .attr("y", (d) => getPolygonCenter(d.polygon)[1] - 9)
+    .style("display", (d) => (getPolygonArea(d.polygon) >= 3200 ? null : "none"));
   allContinentLabels
     .transition(transition)
-    .style("opacity", 1)
-    .attr("transform", (d) => `translate(${offsetX + d.x},${offsetY + d.y})`);
+    .style("opacity", 1);
   continentLabels.exit().transition(transition).style("opacity", 0).remove();
+}
+
+// 用很多短边近似一个圆，作为 Voronoi Treemap 的裁切边界。
+function createCirclePolygon(centerX, centerY, radius, pointCount = 72) {
+  return d3.range(pointCount).map((index) => {
+    const angle = -Math.PI / 2 - (index / pointCount) * Math.PI * 2;
+    return [
+      centerX + Math.cos(angle) * radius,
+      centerY + Math.sin(angle) * radius,
+    ];
+  });
+}
+
+function polygonPath(polygon) {
+  return polygon?.length ? `${d3.line().curve(d3.curveLinearClosed)(polygon)}` : "";
+}
+
+function getPolygonArea(polygon) {
+  return polygon?.length ? Math.abs(d3.polygonArea(polygon)) : 0;
+}
+
+function getPolygonCenter(polygon) {
+  if (!polygon?.length) return [0, 0];
+  const center = d3.polygonCentroid(polygon);
+  return center.every(Number.isFinite) ? center : [polygon.site?.x || 0, polygon.site?.y || 0];
 }
 
 function getContinentItem(node) {
@@ -885,9 +912,11 @@ function getContinentItem(node) {
   };
 }
 
-function updateCircleLabel(cell, node) {
+function updatePolygonLabel(cell, node) {
   const item = node.data;
-  const diameter = node.r * 2;
+  const area = getPolygonArea(node.polygon);
+  const equivalentDiameter = 2 * Math.sqrt(area / Math.PI);
+  const [centerX, centerY] = getPolygonCenter(node.polygon);
   const label = cell.select("text").attr("clip-path", `url(#${makeClipId(item.key)})`);
   const line1 = label.select(".label-line-1");
   const line2 = label.select(".label-line-2");
@@ -895,22 +924,24 @@ function updateCircleLabel(cell, node) {
   const line4 = label.select(".label-line-4");
 
   const estimatedNameWidth = item.name.length * 7 + 18;
-  const showFullLabel = diameter >= Math.max(76, estimatedNameWidth) && node.r >= 25;
-  const showCodeOnly = !showFullLabel && diameter >= 30;
+  const showFullLabel = area >= 1200 && equivalentDiameter >= Math.max(58, estimatedNameWidth);
+  const showCodeOnly = !showFullLabel && area >= 180 && equivalentDiameter >= 18;
 
   label
     .style("display", showFullLabel || showCodeOnly ? null : "none")
-    .attr("y", showFullLabel ? -7 : 0);
+    .attr("y", showFullLabel ? centerY - 7 : centerY);
   line1
     .attr("class", `label-line-1 ${showFullLabel ? "cell-name" : "cell-code"}`)
+    .attr("x", centerX)
     .attr("dy", 0)
     .text(showFullLabel ? item.name : item.code);
   line2
     .attr("class", "label-line-2 cell-value")
+    .attr("x", centerX)
     .attr("dy", "1.35em")
     .text(showFullLabel ? formatCompactCurrency(item.value) : "");
-  line3.text("");
-  line4.text("");
+  line3.attr("x", centerX).text("");
+  line4.attr("x", centerX).text("");
 }
 
 function getAriaLabel(item) {
@@ -1006,7 +1037,7 @@ function hideTooltip() {
   state.pinnedKey = null;
 }
 
-function clearCirclePack() {
+function clearCircularTreemap() {
   state.currentTotal = 0;
   d3.select(elements.svg).selectAll("*").remove();
 }
