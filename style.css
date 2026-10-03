@@ -281,7 +281,7 @@ h1 {
   background: #0b111b;
 }
 
-#treemap {
+#circle-pack {
   display: block;
   width: 100%;
   height: 100%;
@@ -292,11 +292,12 @@ h1 {
 }
 
 .country-cell.is-overview,
-.continent-group {
+.continent-group,
+.continent-label {
   cursor: pointer;
 }
 
-.cell rect {
+.cell circle {
   stroke: #0b111b;
   stroke-width: 1.5px;
   fill-opacity: 1;
@@ -304,12 +305,17 @@ h1 {
   transition: filter 150ms ease, stroke 150ms ease;
 }
 
-.cell:hover rect,
-.cell:focus-visible rect,
-.cell.is-active rect {
+.cell:hover circle,
+.cell:focus-visible circle,
+.cell.is-active circle {
   stroke: #f3f7ff;
   stroke-width: 2.5px;
   filter: brightness(1.13);
+}
+
+.pack-root-boundary {
+  pointer-events: none;
+  stroke-width: 2.5px;
 }
 
 .continent-group {
@@ -321,11 +327,6 @@ h1 {
   transition: filter 150ms ease, stroke 150ms ease;
 }
 
-.continent-header {
-  stroke: rgb(255 255 255 / 12%);
-  stroke-width: 1px;
-}
-
 .continent-group:hover .continent-boundary,
 .continent-group:focus-visible .continent-boundary,
 .continent-group.is-active .continent-boundary {
@@ -334,13 +335,22 @@ h1 {
   filter: brightness(1.12);
 }
 
-.continent-group text {
+.continent-label {
+  outline: none;
+}
+
+.continent-label text {
   fill: #fff;
-  pointer-events: none;
   paint-order: stroke;
-  stroke: rgb(0 0 0 / 35%);
-  stroke-width: 2px;
+  stroke: rgb(0 0 0 / 70%);
+  stroke-width: 3px;
   stroke-linejoin: round;
+}
+
+.continent-label:hover text,
+.continent-label:focus-visible text,
+.continent-label.is-active text {
+  filter: brightness(1.18);
 }
 
 .continent-header-name {
@@ -446,7 +456,7 @@ h1 {
     animation: none;
   }
 
-  .cell rect,
+  .cell circle,
   .continent-boundary {
     transition: none;
   }

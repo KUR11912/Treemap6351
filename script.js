@@ -17,7 +17,7 @@ const CONTINENTS = [
 
 // 每个大洲继续使用固定基础色相。浅色端也保持较高饱和度，避免中间色发灰、发脏；
 // 同时保留很大的明度跨度，让同一洲内的国家仍然容易区分。
-// accent 保留原有大洲标题颜色；light / dark 只控制国家矩形。
+// accent 保留原有大洲标题颜色；light / dark 只控制国家圆。
 const CONTINENT_COLOR_RANGES = {
   Asia: {
     light: "hsl(12, 82%, 91%)",
@@ -126,7 +126,7 @@ const elements = {
   breadcrumbCurrent: document.querySelector("#breadcrumb-current"),
   backButton: document.querySelector("#back-button"),
   chartWrap: document.querySelector("#chart-wrap"),
-  svg: document.querySelector("#treemap"),
+  svg: document.querySelector("#circle-pack"),
   loading: document.querySelector("#loading-state"),
   error: document.querySelector("#error-state"),
   errorMessage: document.querySelector("#error-message"),
@@ -208,7 +208,7 @@ function expandHighRankColorContrast(rank) {
 }
 
 // 同一大洲内按 GDP 从小到大排名，再通过上面的曲线铺满完整色阶。
-// 颜色表达相对排名；矩形面积仍然只由真实 GDP 数值决定。
+// 颜色表达相对排名；圆面积仍然只由真实 GDP 数值决定。
 function createContinentColorScales(countries) {
   const groups = groupCountriesByContinent(countries);
   const scales = new Map();
@@ -466,30 +466,30 @@ function updateVisualization(year, animate = true) {
   hideTooltip();
 
   if (state.currentLevel === "countries") {
-    renderCountryTreemap(countries, animate);
+    renderCountryCirclePack(countries, animate);
   } else {
-    renderContinentTreemap(countries, animate);
+    renderContinentCirclePack(countries, animate);
   }
 }
 
 // ------------------------------
-// 7. 第一级：大洲内嵌国家的 Nested Treemap
+// 7. 第一级：世界、大洲和国家的 Circle Packing
 // ------------------------------
-function renderContinentTreemap(countries, animate = true) {
+function renderContinentCirclePack(countries, animate = true) {
   const continentTotals = calculateContinentTotals(countries);
 
-  elements.chartHeading.textContent = "World GDP by Continent and Country";
+  elements.chartHeading.textContent = "World GDP Circle Packing";
   elements.chartCaption.textContent =
-    "Rectangle size represents GDP. Within each continent, darker colors indicate higher GDP.";
+    "Circle area represents GDP. Within each continent, darker colors indicate higher GDP.";
   elements.svg.setAttribute(
     "aria-label",
-    `${state.selectedYear} 年世界六大洲及其国家 GDP 嵌套式 Treemap`,
+    `${state.selectedYear} 年世界六大洲及其国家 GDP 层级圆形打包图`,
   );
 
   if (continentTotals.length === 0) {
     showEmpty(`世界六大洲在 ${state.selectedYear} 年没有有效 GDP 数据，请选择其他年份。`);
     updateSummary({ count: 0, total: 0, level: "continents", countryCount: 0 });
-    clearTreemap();
+    clearCirclePack();
     return;
   }
 
@@ -501,13 +501,13 @@ function renderContinentTreemap(countries, animate = true) {
     level: "continents",
     countryCount: countries.length,
   });
-  drawTreemap(countries, { level: "continents", total, animate });
+  drawCirclePack(countries, { level: "continents", total, animate });
 }
 
 // ------------------------------
-// 8. 第二级：国家 Treemap
+// 8. 第二级：单个大洲的国家 Circle Packing
 // ------------------------------
-function renderCountryTreemap(countries, animate = true) {
+function renderCountryCirclePack(countries, animate = true) {
   const continentCountries = countries
     .filter((country) => country.continent === state.selectedContinent)
     .map((country) => ({
@@ -518,10 +518,10 @@ function renderCountryTreemap(countries, animate = true) {
 
   elements.chartHeading.textContent = `${state.selectedContinent} — GDP by Country`;
   elements.chartCaption.textContent =
-    "Rectangle size represents GDP. Within this continent, darker colors indicate higher GDP.";
+    "Circle area represents GDP. Within this continent, darker colors indicate higher GDP.";
   elements.svg.setAttribute(
     "aria-label",
-    `${state.selectedYear} 年 ${state.selectedContinent} 各国 GDP Treemap`,
+    `${state.selectedYear} 年 ${state.selectedContinent} 各国 GDP 圆形打包图`,
   );
 
   if (continentCountries.length === 0) {
@@ -529,29 +529,32 @@ function renderCountryTreemap(countries, animate = true) {
       `${state.selectedContinent} 在 ${state.selectedYear} 年没有有效 GDP 数据，请选择其他年份。`,
     );
     updateSummary({ count: 0, total: 0, level: "countries" });
-    clearTreemap();
+    clearCirclePack();
     return;
   }
 
   elements.empty.hidden = true;
   const total = d3.sum(continentCountries, (country) => country.value);
   updateSummary({ count: continentCountries.length, total, level: "countries" });
-  drawTreemap(continentCountries, { level: "countries", total, animate });
+  drawCirclePack(continentCountries, { level: "countries", total, animate });
 }
 
 // ------------------------------
-// 9. 共用绘图：总览使用三层树，详情使用两层树
+// 9. 共用绘图：用 d3.pack 把层级数据排成互不重叠的圆
 // ------------------------------
-function drawTreemap(items, { level, total, animate }) {
+function drawCirclePack(items, { level, total, animate }) {
   state.currentTotal = total;
 
   const width = Math.max(1, elements.chartWrap.clientWidth);
   const height = Math.max(1, elements.chartWrap.clientHeight);
   const isOverview = level === "continents";
-  const headerHeight = width < 520 ? 30 : 34;
+  const outerMargin = width < 520 ? 8 : 12;
+  const diameter = Math.max(1, Math.min(width, height) - outerMargin * 2);
+  const offsetX = (width - diameter) / 2;
+  const offsetY = (height - diameter) / 2;
   const colorScales = createContinentColorScales(items);
 
-  // 总览的数据树：World → Continent → Country。
+  // 总览是 World → Continent → Country；详情是 Continent → Country。
   const hierarchyData = isOverview
     ? {
         name: "World",
@@ -570,8 +573,10 @@ function drawTreemap(items, { level, total, animate }) {
         })),
       }
     : {
+        key: `continent-${state.selectedContinent}`,
         name: state.selectedContinent,
         kind: "continent",
+        continent: state.selectedContinent,
         children: items,
       };
 
@@ -580,16 +585,11 @@ function drawTreemap(items, { level, total, animate }) {
     .sum((item) => (item.kind === "country" ? item.value : 0))
     .sort((a, b) => b.value - a.value);
 
+  // d3.pack 会让圆面积按 value 分配，因此国家圆面积仍然代表真实 GDP。
   d3
-    .treemap()
-    .tile(d3.treemapSquarify.ratio(1.15))
-    .size([width, height])
-    // 大洲之间留较宽间距，国家之间只留细缝。
-    .paddingInner((node) => (isOverview && node.depth === 0 ? 6 : 1.5))
-    .paddingOuter(isOverview ? 2 : 1)
-    // 大洲顶部专门留给标题，标题不会盖住国家矩形。
-    .paddingTop((node) => (isOverview && node.depth === 1 ? headerHeight : 0))
-    .round(true)(root);
+    .pack()
+    .size([diameter, diameter])
+    .padding(isOverview ? 4 : 3)(root);
 
   const leaves = root.leaves();
   const continentNodes = isOverview ? root.children || [] : [];
@@ -602,6 +602,10 @@ function drawTreemap(items, { level, total, animate }) {
   let defs = svg.select("defs");
   if (defs.empty()) defs = svg.insert("defs", ":first-child");
 
+  let rootLayer = svg.select("g.pack-root-layer");
+  if (rootLayer.empty()) {
+    rootLayer = svg.append("g").attr("class", "pack-root-layer");
+  }
   let continentLayer = svg.select("g.continent-layer");
   if (continentLayer.empty()) {
     continentLayer = svg.append("g").attr("class", "continent-layer");
@@ -610,30 +614,38 @@ function drawTreemap(items, { level, total, animate }) {
   if (countryLayer.empty()) {
     countryLayer = svg.append("g").attr("class", "country-layer");
   }
+  let continentLabelLayer = svg.select("g.continent-label-layer");
+  if (continentLabelLayer.empty()) {
+    continentLabelLayer = svg.append("g").attr("class", "continent-label-layer");
+  }
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const duration = animate && !reducedMotion ? TRANSITION_DURATION : 0;
-  const transition = svg.transition("treemap-update").duration(duration).ease(d3.easeCubicInOut);
+  const transition = svg.transition("circle-pack-update").duration(duration).ease(d3.easeCubicInOut);
 
-  // 先画大洲外框与标题，再在上层画各国矩形。
-  const continentClips = defs
-    .selectAll("clipPath.continent-clip")
-    .data(continentNodes, (d) => d.data.key);
-  const continentClipsEnter = continentClips
+  // 最外层圆代表当前显示范围：总览时是 World，详情时是所选大洲。
+  const rootCircle = rootLayer.selectAll("circle.pack-root-boundary").data([root]);
+  rootCircle
     .enter()
-    .append("clipPath")
-    .attr("class", "continent-clip");
-  continentClipsEnter.append("rect");
-  continentClips
-    .merge(continentClipsEnter)
-    .attr("id", (d) => `${makeClipId(d.data.key)}-header`)
-    .select("rect")
-    .attr("x", 5)
-    .attr("y", 2)
-    .attr("width", (d) => Math.max(0, d.x1 - d.x0 - 10))
-    .attr("height", (d) => Math.max(0, Math.min(headerHeight, d.y1 - d.y0) - 4));
-  continentClips.exit().remove();
+    .append("circle")
+    .attr("class", "pack-root-boundary")
+    .attr("cx", width / 2)
+    .attr("cy", height / 2)
+    .attr("r", 0)
+    .merge(rootCircle)
+    .transition(transition)
+    .attr("cx", offsetX + root.x)
+    .attr("cy", offsetY + root.y)
+    .attr("r", Math.max(0, root.r))
+    .attr("fill", "#0b111b")
+    .attr(
+      "stroke",
+      isOverview
+        ? "#314258"
+        : CONTINENT_COLOR_RANGES[state.selectedContinent]?.accent || "#314258",
+    );
 
+  // 大洲圆位于国家圆下方，形成清楚的父子层级。
   const continentGroups = continentLayer
     .selectAll("g.continent-group")
     .data(continentNodes, (d) => d.data.key);
@@ -643,15 +655,7 @@ function drawTreemap(items, { level, total, animate }) {
     .attr("class", "continent-group")
     .attr("transform", `translate(${width / 2},${height / 2})`)
     .style("opacity", animate ? 0 : 1);
-  continentEnter.append("rect").attr("class", "continent-boundary").attr("rx", 7);
-  continentEnter.append("rect").attr("class", "continent-header").attr("rx", 5);
-  const continentTextEnter = continentEnter
-    .append("text")
-    .attr("x", 8)
-    .attr("y", 6)
-    .attr("dominant-baseline", "hanging");
-  continentTextEnter.append("tspan").attr("class", "continent-header-name").attr("x", 8);
-  continentTextEnter.append("tspan").attr("class", "continent-header-meta").attr("x", 8);
+  continentEnter.append("circle").attr("class", "continent-boundary");
 
   const allContinentGroups = continentEnter
     .merge(continentGroups)
@@ -689,47 +693,27 @@ function drawTreemap(items, { level, total, animate }) {
     });
 
   allContinentGroups
-    .select(".continent-header-name")
-    .attr("dy", 0)
-    .text((d) => d.data.name);
-  allContinentGroups
-    .select(".continent-header-meta")
-    .attr("dy", "1.25em")
-    .text((d) => `${formatCompactCurrency(d.value)} · ${d.leaves().length} countries`);
-  allContinentGroups
-    .select("text")
-    .attr("clip-path", (d) => `url(#${makeClipId(d.data.key)}-header)`);
-
-  allContinentGroups
     .transition(transition)
     .style("opacity", 1)
-    .attr("transform", (d) => `translate(${d.x0},${d.y0})`);
+    .attr("transform", (d) => `translate(${offsetX + d.x},${offsetY + d.y})`);
   allContinentGroups
     .select(".continent-boundary")
     .transition(transition)
-    .attr("width", (d) => Math.max(0, d.x1 - d.x0))
-    .attr("height", (d) => Math.max(0, d.y1 - d.y0))
+    .attr("r", (d) => Math.max(0, d.r))
     .attr("fill", "#101826")
     .attr("stroke", (d) => CONTINENT_COLOR_RANGES[d.data.continent].accent);
-  allContinentGroups
-    .select(".continent-header")
-    .transition(transition)
-    .attr("width", (d) => Math.max(0, d.x1 - d.x0))
-    .attr("height", (d) => Math.max(0, Math.min(headerHeight, d.y1 - d.y0)))
-    .attr("fill", (d) => CONTINENT_COLOR_RANGES[d.data.continent].accent);
   continentGroups.exit().transition(transition).style("opacity", 0).remove();
 
   const clips = defs.selectAll("clipPath.tile-clip").data(leaves, (d) => d.data.key);
   const clipsEnter = clips.enter().append("clipPath").attr("class", "tile-clip");
-  clipsEnter.append("rect");
+  clipsEnter.append("circle");
   clips
     .merge(clipsEnter)
     .attr("id", (d) => makeClipId(d.data.key))
-    .select("rect")
-    .attr("x", 4)
-    .attr("y", 4)
-    .attr("width", (d) => Math.max(0, d.x1 - d.x0 - 8))
-    .attr("height", (d) => Math.max(0, d.y1 - d.y0 - 8));
+    .select("circle")
+    .attr("cx", 0)
+    .attr("cy", 0)
+    .attr("r", (d) => Math.max(0, d.r - 3));
   clips.exit().remove();
 
   const cells = countryLayer.selectAll("g.cell").data(leaves, (d) => d.data.key);
@@ -738,17 +722,16 @@ function drawTreemap(items, { level, total, animate }) {
     .append("g")
     .attr("transform", `translate(${width / 2},${height / 2})`)
     .style("opacity", animate ? 0 : 1);
-  cellsEnter.append("rect").attr("rx", 3).attr("ry", 3);
+  cellsEnter.append("circle").attr("r", 0);
 
   const labelsEnter = cellsEnter
     .append("text")
-    .attr("x", 8)
-    .attr("y", 8)
-    .attr("dominant-baseline", "hanging");
-  labelsEnter.append("tspan").attr("class", "label-line-1").attr("x", 8);
-  labelsEnter.append("tspan").attr("class", "label-line-2").attr("x", 8);
-  labelsEnter.append("tspan").attr("class", "label-line-3").attr("x", 8);
-  labelsEnter.append("tspan").attr("class", "label-line-4").attr("x", 8);
+    .attr("text-anchor", "middle")
+    .attr("dominant-baseline", "middle");
+  labelsEnter.append("tspan").attr("class", "label-line-1").attr("x", 0);
+  labelsEnter.append("tspan").attr("class", "label-line-2").attr("x", 0);
+  labelsEnter.append("tspan").attr("class", "label-line-3").attr("x", 0);
+  labelsEnter.append("tspan").attr("class", "label-line-4").attr("x", 0);
 
   const allCells = cellsEnter
     .merge(cells)
@@ -803,22 +786,92 @@ function drawTreemap(items, { level, total, animate }) {
   allCells
     .transition(transition)
     .style("opacity", 1)
-    .attr("transform", (d) => `translate(${d.x0},${d.y0})`);
+    .attr("transform", (d) => `translate(${offsetX + d.x},${offsetY + d.y})`);
   allCells
-    .select("rect")
+    .select("circle")
     .transition(transition)
-    .attr("width", (d) => Math.max(0, d.x1 - d.x0))
-    .attr("height", (d) => Math.max(0, d.y1 - d.y0))
+    .attr("r", (d) => Math.max(0, d.r))
     .attr("fill", (d) => getCountryColor(d.data, colorScales))
     .attr("fill-opacity", 1)
     .attr("opacity", 1)
     .attr("stroke", (d) => getCountryBorder(d.data, colorScales));
 
   allCells.each(function (d) {
-    updateTileLabel(d3.select(this), d);
+    updateCircleLabel(d3.select(this), d);
   });
 
   cells.exit().transition(transition).style("opacity", 0).remove();
+
+  // 大洲文字单独放在最上层，避免被国家圆遮挡。
+  const continentLabels = continentLabelLayer
+    .selectAll("g.continent-label")
+    .data(continentNodes, (d) => d.data.key);
+  const continentLabelsEnter = continentLabels
+    .enter()
+    .append("g")
+    .attr("class", "continent-label")
+    .attr("transform", `translate(${width / 2},${height / 2})`)
+    .style("opacity", animate ? 0 : 1);
+  const labelTextEnter = continentLabelsEnter
+    .append("text")
+    .attr("text-anchor", "middle")
+    .attr("dominant-baseline", "hanging");
+  labelTextEnter.append("tspan").attr("class", "continent-header-name").attr("x", 0);
+  labelTextEnter.append("tspan").attr("class", "continent-header-meta").attr("x", 0);
+
+  const allContinentLabels = continentLabelsEnter
+    .merge(continentLabels)
+    .attr("tabindex", 0)
+    .attr("role", "button")
+    .attr("aria-label", (d) => getAriaLabel(getContinentItem(d)))
+    .on("pointerenter", function (event, d) {
+      showTooltip(event, getContinentItem(d));
+      d3.select(this).classed("is-active", true);
+    })
+    .on("pointermove", function (event) {
+      if (state.pinnedKey === null) positionTooltip(event);
+    })
+    .on("pointerleave", function () {
+      d3.select(this).classed("is-active", false);
+      if (state.pinnedKey === null) hideTooltip();
+    })
+    .on("focus", function (event, d) {
+      showTooltipForElement(this, getContinentItem(d));
+      d3.select(this).classed("is-active", true);
+    })
+    .on("blur", function () {
+      d3.select(this).classed("is-active", false);
+      if (state.pinnedKey === null) hideTooltip();
+    })
+    .on("keydown", function (event, d) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        showCountryView(d.data.continent, true);
+      }
+    })
+    .on("click", function (event, d) {
+      event.stopPropagation();
+      showCountryView(d.data.continent, true);
+    });
+
+  allContinentLabels
+    .select(".continent-header-name")
+    .attr("dy", 0)
+    .text((d) => d.data.name);
+  allContinentLabels
+    .select(".continent-header-meta")
+    .attr("dy", "1.25em")
+    .text((d) => `${formatCompactCurrency(d.value)} · ${d.leaves().length} countries`)
+    .style("display", (d) => (d.r >= 56 ? null : "none"));
+  allContinentLabels
+    .select("text")
+    .attr("y", (d) => -d.r + Math.min(18, Math.max(10, d.r * 0.15)))
+    .style("display", (d) => (d.r >= 30 ? null : "none"));
+  allContinentLabels
+    .transition(transition)
+    .style("opacity", 1)
+    .attr("transform", (d) => `translate(${offsetX + d.x},${offsetY + d.y})`);
+  continentLabels.exit().transition(transition).style("opacity", 0).remove();
 }
 
 function getContinentItem(node) {
@@ -832,21 +885,22 @@ function getContinentItem(node) {
   };
 }
 
-function updateTileLabel(cell, node) {
+function updateCircleLabel(cell, node) {
   const item = node.data;
-  const tileWidth = node.x1 - node.x0;
-  const tileHeight = node.y1 - node.y0;
+  const diameter = node.r * 2;
   const label = cell.select("text").attr("clip-path", `url(#${makeClipId(item.key)})`);
   const line1 = label.select(".label-line-1");
   const line2 = label.select(".label-line-2");
   const line3 = label.select(".label-line-3");
   const line4 = label.select(".label-line-4");
 
-  const estimatedNameWidth = item.name.length * 7 + 16;
-  const showFullLabel = tileWidth >= Math.max(74, estimatedNameWidth) && tileHeight >= 44;
-  const showCodeOnly = !showFullLabel && tileWidth >= 34 && tileHeight >= 22;
+  const estimatedNameWidth = item.name.length * 7 + 18;
+  const showFullLabel = diameter >= Math.max(76, estimatedNameWidth) && node.r >= 25;
+  const showCodeOnly = !showFullLabel && diameter >= 30;
 
-  label.style("display", showFullLabel || showCodeOnly ? null : "none").attr("y", 7);
+  label
+    .style("display", showFullLabel || showCodeOnly ? null : "none")
+    .attr("y", showFullLabel ? -7 : 0);
   line1
     .attr("class", `label-line-1 ${showFullLabel ? "cell-name" : "cell-code"}`)
     .attr("dy", 0)
@@ -952,7 +1006,7 @@ function hideTooltip() {
   state.pinnedKey = null;
 }
 
-function clearTreemap() {
+function clearCirclePack() {
   state.currentTotal = 0;
   d3.select(elements.svg).selectAll("*").remove();
 }
