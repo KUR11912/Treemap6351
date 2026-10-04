@@ -17,6 +17,7 @@ const CONTINENTS = [
 
 // 每个大洲继续使用固定基础色相。浅色端也保持较高饱和度，避免中间色发灰、发脏；
 // 同时保留很大的明度跨度，让同一洲内的国家仍然容易区分。
+// Challenge 1 把颜色含义翻转为：低 GDP 深色，高 GDP 浅色。
 // accent 保留原有大洲标题颜色；light / dark 只控制国家矩形。
 const CONTINENT_COLOR_RANGES = {
   Asia: {
@@ -195,7 +196,7 @@ function makeClipId(key) {
 }
 
 // GDP 排名最高的少数国家往往都挤在色阶末端，看起来会过于接近。
-// 因此把前 25% 的国家分配到 60% 的深色色阶，让美国、加拿大、墨西哥
+// 因此把前 25% 的国家分配到 60% 的色阶，让美国、加拿大、墨西哥
 // 这类排名相邻的大型经济体也能形成明显的颜色差异。
 function expandHighRankColorContrast(rank) {
   const topGroupStart = 0.75;
@@ -208,6 +209,7 @@ function expandHighRankColorContrast(rank) {
 }
 
 // 同一大洲内按 GDP 从小到大排名，再通过上面的曲线铺满完整色阶。
+// Challenge 1：排名越低越接近 dark，排名越高越接近 light。
 // 颜色表达相对排名；矩形面积仍然只由真实 GDP 数值决定。
 function createContinentColorScales(countries) {
   const groups = groupCountriesByContinent(countries);
@@ -230,8 +232,9 @@ function createContinentColorScales(countries) {
     );
     const normalizedRank = (country) => rankByCode.get(country.code) ?? 0.5;
     const colorRank = (country) => expandHighRankColorContrast(normalizedRank(country));
-    // 两端使用相同色相，并在 HSL 空间插值，让中间颜色保持鲜艳而不变灰。
-    const interpolateColor = d3.interpolateHsl(range.light, range.dark);
+    // 将原来的浅→深顺序翻转成深→浅：低 GDP 深色，高 GDP 浅色。
+    // 两端仍使用相同色相，并在 HSL 空间插值，让中间颜色保持鲜艳而不变灰。
+    const interpolateColor = d3.interpolateHsl(range.dark, range.light);
 
     scales.set(continent, {
       tone: colorRank,
@@ -480,7 +483,7 @@ function renderContinentTreemap(countries, animate = true) {
 
   elements.chartHeading.textContent = "World GDP by Continent and Country";
   elements.chartCaption.textContent =
-    "Rectangle size represents GDP. Within each continent, darker colors indicate higher GDP.";
+    "Rectangle size represents GDP. Within each continent, lighter colors indicate higher GDP.";
   elements.svg.setAttribute(
     "aria-label",
     `${state.selectedYear} 年世界六大洲及其国家 GDP 嵌套式 Treemap`,
@@ -518,7 +521,7 @@ function renderCountryTreemap(countries, animate = true) {
 
   elements.chartHeading.textContent = `${state.selectedContinent} — GDP by Country`;
   elements.chartCaption.textContent =
-    "Rectangle size represents GDP. Within this continent, darker colors indicate higher GDP.";
+    "Rectangle size represents GDP. Within this continent, lighter colors indicate higher GDP.";
   elements.svg.setAttribute(
     "aria-label",
     `${state.selectedYear} 年 ${state.selectedContinent} 各国 GDP Treemap`,
