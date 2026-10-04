@@ -1,6 +1,22 @@
-# World GDP Treemap
+# World GDP Treemap — Challenge 3
 
-这是一个用世界银行真实数据制作的嵌套式 GDP 矩形树图网站。打开后可以同时看到六大洲和大洲内部的国家，点击大洲标题或任意国家可以放大查看该洲。它不需要安装复杂工具，也不需要 API Key。
+这是 Challenge 3 的矩形比例版本。网站继续使用世界银行真实 GDP 数据，并保留原有的年份选择、Tooltip、大洲下钻和响应式布局。本分支只把 `d3.treemapSquarify` 的目标长宽比从 `1.15` 调整为 `3`，让矩形更加细长；矩形面积仍然代表真实 GDP。
+
+## Challenge 3 修改了什么
+
+原来的代码：
+
+```js
+.tile(d3.treemapSquarify.ratio(1.15))
+```
+
+修改后：
+
+```js
+.tile(d3.treemapSquarify.ratio(3))
+```
+
+比例越接近 `1`，矩形越接近正方形；比例越大，矩形越细长。这个参数只改变布局形状，不改变 GDP 数据和面积含义。
 
 ## 每个文件是做什么的
 

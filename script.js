@@ -582,7 +582,9 @@ function drawTreemap(items, { level, total, animate }) {
 
   d3
     .treemap()
-    .tile(d3.treemapSquarify.ratio(1.15))
+    // Challenge 3：把目标长宽比从 1.15 调大到 3，矩形会更细长。
+    // 面积计算仍然使用真实 GDP，数据和交互逻辑都不变。
+    .tile(d3.treemapSquarify.ratio(3))
     .size([width, height])
     // 大洲之间留较宽间距，国家之间只留细缝。
     .paddingInner((node) => (isOverview && node.depth === 0 ? 6 : 1.5))
